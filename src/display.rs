@@ -453,20 +453,6 @@ pub trait StyleBuilder: Sized {
         self
     }
 
-    /// Sets the style of the leaves of the tree. See [`TextStyle`] for more
-    /// information.
-    fn leaf_style(mut self, style: TextStyle) -> Self {
-        self.style_mut().leaf_style = style;
-        self
-    }
-
-    /// Sets the style of the branches of the tre. See [`TextStyle`] for more
-    /// information.
-    fn branch_style(mut self, style: TextStyle) -> Self {
-        self.style_mut().branch_style = style;
-        self
-    }
-
     /// Sets the color of the leaves of the tree. See [`Color`] for more
     /// information.
     fn leaf_color(mut self, color: Color) -> Self {

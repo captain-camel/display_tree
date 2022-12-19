@@ -1,6 +1,4 @@
-# display_tree
-
-[`display_tree`] provides simple, automatic, and customizable tree pretty-printing.
+`display_tree` provides simple, automatic, and customizable tree pretty-printing.
 
 This crate provides tools to easily pretty-print data as a tree, including a trait that represents the ability to be printed as a tree, and a derive macro to automatically implement it for your types
 

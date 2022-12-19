@@ -11,4 +11,4 @@ repository = "https://github.com/captain-camel/display_tree"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-display_tree_derive = { path = "display_tree_derive" }
+display_tree_derive = { path = "display_tree_derive", version = "*"}

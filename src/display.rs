@@ -141,9 +141,9 @@ pub struct Style {
     pub char_set: CharSet,
     /// The indentation of each node.
     pub indentation: u32,
-    /// The style of the text portions of the tree. See [`TextStyle`] for more
+    /// The style of the leaves of the tree. See [`TextStyle`] for more
     /// information.
-    pub text_style: TextStyle,
+    pub leaf_style: TextStyle,
     /// The style of the branches of the tree. See [`TextStyle`] for more
     /// information.
     pub branch_style: TextStyle,
@@ -161,13 +161,13 @@ impl Default for Style {
     /// Default values:
     /// - [`char_set`](Style::char_set): [`CharSet::SINGLE_LINE`]
     /// - [`indentation`](Style::indentation): `2`
-    /// - [`text_style`](Style::text_style): [`TextStyle::default()`]
+    /// - [`leaf_style`](Style::leaf_style): [`TextStyle::default()`]
     /// - [`branch_style`](Style::branch_style): [`TextStyle::default()`]
     fn default() -> Self {
         Self {
             char_set: CharSet::SINGLE_LINE,
             indentation: 2,
-            text_style: TextStyle::default(),
+            leaf_style: TextStyle::default(),
             branch_style: TextStyle::default(),
         }
     }
@@ -453,47 +453,47 @@ pub trait StyleBuilder: Sized {
         self
     }
 
-    /// Sets the color of the text in the tree. See [`Color`] for more
+    /// Sets the color of the leaves of the tree. See [`Color`] for more
     /// information.
-    fn text_color(mut self, color: Color) -> Self {
-        self.style_mut().text_style.text_color = Some(color);
+    fn leaf_color(mut self, color: Color) -> Self {
+        self.style_mut().leaf_style.text_color = Some(color);
         self
     }
 
-    /// Sets the background color of the text in the tree. See [`Color`] for
+    /// Sets the background color of the leaves of the tree. See [`Color`] for
     /// more information.
-    fn text_background_color(mut self, color: Color) -> Self {
-        self.style_mut().text_style.background_color = Some(color);
+    fn leaf_background_color(mut self, color: Color) -> Self {
+        self.style_mut().leaf_style.background_color = Some(color);
         self
     }
 
-    /// Renders the text as bold.
-    fn bold_text(mut self) -> Self {
-        self.style_mut().text_style.is_bold = true;
+    /// Renders the leaves as bold.
+    fn bold_leaves(mut self) -> Self {
+        self.style_mut().leaf_style.is_bold = true;
         self
     }
 
-    /// Decreases the intensity of the text.
-    fn faint_text(mut self) -> Self {
-        self.style_mut().text_style.is_faint = true;
+    /// Decreases the intensity of the leaves.
+    fn faint_leaves(mut self) -> Self {
+        self.style_mut().leaf_style.is_faint = true;
         self
     }
 
-    /// Italicises the text.
-    fn italic_text(mut self) -> Self {
-        self.style_mut().text_style.is_italic = true;
+    /// Italicises the leaves.
+    fn italic_leaves(mut self) -> Self {
+        self.style_mut().leaf_style.is_italic = true;
         self
     }
 
-    /// Underlines the text.
-    fn underlined_text(mut self) -> Self {
-        self.style_mut().text_style.is_underlined = true;
+    /// Underlines the leaves.
+    fn underlined_leaves(mut self) -> Self {
+        self.style_mut().leaf_style.is_underlined = true;
         self
     }
 
-    /// Causes the text to be crossed-out.
-    fn strikethrough_text(mut self) -> Self {
-        self.style_mut().text_style.is_strikethrough = true;
+    /// Causes the leaves to be crossed-out.
+    fn strikethrough_leaves(mut self) -> Self {
+        self.style_mut().leaf_style.is_strikethrough = true;
         self
     }
 

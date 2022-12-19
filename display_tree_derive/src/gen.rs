@@ -126,7 +126,7 @@ pub fn generate_struct_field_writes<'a>(
             // Otherwise try to use `Display`.
             // Use the span of the field so that errors show in the correct location.
             quote_spanned! { field.span() =>
-                #STYLE_PARAM.text_style.apply(&::std::format!(#leaf_expression_format, #field_member_expression))
+                #STYLE_PARAM.leaf_style.apply(&::std::format!(#leaf_expression_format, #field_member_expression))
             }
         };
 
@@ -275,7 +275,7 @@ pub fn generate_enum_field_writes<'a>(
             // Otherwise try to use `Display`.
             // Use the span of the field so that errors show in the correct location.
             quote_spanned! { field.span() =>
-                #STYLE_PARAM.text_style.apply(&::std::format!(#leaf_expression_format, #binding))
+                #STYLE_PARAM.leaf_style.apply(&::std::format!(#leaf_expression_format, #binding))
             }
         };
 
@@ -376,7 +376,7 @@ fn generate_field_writes(
     }
 
     quote! {
-        write!(#FORMATTER_PARAM, "{}", #STYLE_PARAM.text_style.apply(#node_label_string_ref))?;
+        write!(#FORMATTER_PARAM, "{}", #STYLE_PARAM.leaf_style.apply(#node_label_string_ref))?;
         #(#field_writes)*
     }
 }

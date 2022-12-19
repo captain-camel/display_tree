@@ -1,6 +1,6 @@
 [package]
 name = "display_tree"
-version = "1.1.0"
+version = "1.0.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Simple, automatic, and customizable tree pretty-printing"
@@ -11,4 +11,4 @@ repository = "https://github.com/captain-camel/display_tree"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-display_tree_derive = { path = "display_tree_derive", version = "1.0.0"}
+display_tree_derive = { path = "display_tree_derive", version = "1.0.1"}

@@ -130,7 +130,7 @@ impl<'a, T: DisplayTree> fmt::Display for AsTree<'a, T> {
 /// use display_tree::{CharSet, Color, Style, StyleBuilder};
 ///
 /// let style = Style::default()
-///     .text_color(Color::Blue)
+///     .leaf_color(Color::Blue)
 ///     .branch_background_color(Color::Red)
 ///     .indentation(4)
 ///     .char_set(CharSet::SINGLE_LINE_CURVED);

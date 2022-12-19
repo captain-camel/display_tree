@@ -1,0 +1,1 @@
+This crate contains derive macros for the [`display_tree`](https://docs.rs/display_tree/*/display_tree) crate.

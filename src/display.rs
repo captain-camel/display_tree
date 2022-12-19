@@ -500,7 +500,7 @@ pub trait StyleBuilder: Sized {
     /// Sets the color of the branches of the tree. See [`Color`] for more
     /// information.
     fn branch_color(mut self, color: Color) -> Self {
-        self.style_mut().text_style.text_color = Some(color);
+        self.style_mut().branch_style.text_color = Some(color);
         self
     }
 
@@ -513,13 +513,13 @@ pub trait StyleBuilder: Sized {
 
     /// Renders the branches as bold.
     fn bold_branches(mut self) -> Self {
-        self.style_mut().text_style.is_bold = true;
+        self.style_mut().branch_style.is_bold = true;
         self
     }
 
     /// Decreases the intensity of the branches.
     fn faint_branches(mut self) -> Self {
-        self.style_mut().text_style.is_faint = true;
+        self.style_mut().branch_style.is_faint = true;
         self
     }
 }

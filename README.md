@@ -1,4 +1,5 @@
-`display_tree` provides simple, automatic, and customizable tree pretty-printing.
+### `display_tree` provides simple, automatic, and customizable tree pretty-printing.
+---
 
 ![Example](https://i.ibb.co/RbpZ0Jk/Screenshot-2022-12-19-at-5-36-09-PM.png)
 

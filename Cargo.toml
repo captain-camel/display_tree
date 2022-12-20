@@ -6,7 +6,6 @@ license = "MIT OR Apache-2.0"
 description = "Simple, automatic, and customizable tree pretty-printing"
 keywords = ["tree", "pretty-print", "derive", "formatting"]
 categories = ["value-formatting", "data-structures"]
-documentation = "https://docs.rs/display_tree/*/display_tree"
 repository = "https://github.com/captain-camel/display_tree"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

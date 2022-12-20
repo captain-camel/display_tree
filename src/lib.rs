@@ -9,12 +9,17 @@
 //! types. The way a tree is formatted can be customized with the [`Style`]
 //! type, or builder methods on [`AsTree`], using the [`StyleBuilder`] trait.
 //!
-//! See the [`DisplayTree` documentation](DisplayTree) to get started.
+//! See the [`DisplayTree` documentation](DisplayTree) to learn how to make a
+//! type printable as a tree, or [`AsTree`] or any of the [macros] provided by
+//! [`display_tree`] for information on displaying or formatting your new tree
+//! type.
+//!
+//! [macros]: https://docs.rs/display_tree/*/display_tree/#macros
 //!
 //! # Examples
 //!
 //! ```
-//! use display_tree::{AsTree, CharSet, DisplayTree, StyleBuilder};
+//! use display_tree::{format_tree, CharSet, DisplayTree, Style, StyleBuilder};
 //!
 //! // A tree representing a numerical expression.
 //! #[derive(DisplayTree)]
@@ -46,9 +51,9 @@
 //! };
 //!
 //! assert_eq!(
-//!     format!(
-//!         "{}",
-//!         AsTree::new(&expr)
+//!     format_tree!(
+//!         expr,
+//!         Style::default()
 //!             .indentation(1)
 //!             .char_set(CharSet::DOUBLE_LINE)
 //!     ),
@@ -94,7 +99,7 @@ pub use display_tree_derive::DisplayTree;
 /// information.
 ///
 /// ```
-/// use display_tree::{AsTree, DisplayTree};
+/// use display_tree::{format_tree, AsTree, DisplayTree};
 ///
 /// // A tree representing a numerical expression.
 /// #[derive(DisplayTree)]
@@ -129,7 +134,7 @@ pub use display_tree_derive::DisplayTree;
 /// let expr: Expr = get_expr();
 ///
 /// assert_eq!(
-///     format!("{}", AsTree::new(&expr)),
+///     format_tree!(expr),
 ///     concat!(
 ///         "+\n",
 ///         "├── -\n",

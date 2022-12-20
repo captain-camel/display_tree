@@ -4,9 +4,9 @@
 mod attrs;
 mod gen;
 
-/// Derive marco for the `DislayTree` trait.
+/// Derive marco for the [`DisplayTree` trait](https://docs.rs/display_tree/*/display_tree/trait.DisplayTree.html).
 ///
-/// See the `DisplayTree` documentation for more information.
+/// See the [`DisplayTree` documentation](https://docs.rs/display_tree/*/display_tree/trait.DisplayTree.html) for more information.
 #[proc_macro_derive(
     DisplayTree,
     attributes(field_label, ignore_field, node_label, optional_field, tree)

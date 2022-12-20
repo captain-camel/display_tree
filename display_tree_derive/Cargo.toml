@@ -1,9 +1,10 @@
 [package]
 name = "display_tree_derive"
-version = "1.0.2"
+version = "1.0.3"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Derive macro for `display_tree` crate"
+documentation = "https://docs.rs/display_tree_derive/*/display_tree_derive/"
 repository = "https://github.com/captain-camel/display_tree/tree/master/display_tree_derive"
 
 [dependencies]

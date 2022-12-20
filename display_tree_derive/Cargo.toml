@@ -6,8 +6,6 @@ license = "MIT OR Apache-2.0"
 description = "Derive macro for `display_tree` crate"
 repository = "https://github.com/captain-camel/display_tree/tree/master/display_tree_derive"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 syn = "1.0.105"
 quote = "1.0.21"
@@ -16,3 +14,5 @@ proc-macro-error = "1.0.4"
 
 [lib]
 proc-macro = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

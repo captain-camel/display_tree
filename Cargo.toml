@@ -8,7 +8,7 @@ keywords = ["tree", "pretty-print", "derive", "formatting"]
 categories = ["value-formatting", "data-structures"]
 repository = "https://github.com/captain-camel/display_tree"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 display_tree_derive = { path = "display_tree_derive", version = "1.0.1"}
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

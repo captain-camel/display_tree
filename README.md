@@ -59,5 +59,3 @@ assert_eq!(
     ),
 );
 ```
-
-License: MIT OR Apache-2.0

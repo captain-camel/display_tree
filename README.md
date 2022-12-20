@@ -1,5 +1,7 @@
 `display_tree` provides simple, automatic, and customizable tree pretty-printing.
 
+![Example](https://i.ibb.co/RbpZ0Jk/Screenshot-2022-12-19-at-5-36-09-PM.png)
+
 This crate provides tools to easily pretty-print data as a tree, including a trait that represents the ability to be printed as a tree, and a derive macro to automatically implement it for your types
 
 See the [crate-level documentation](https://docs.rs/display_tree/*/display_tree) to get started.

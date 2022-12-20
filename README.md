@@ -1,6 +1,6 @@
 # `display_tree`
 
-Simple, automatic, and customizable tree pretty-printing.
+Simple, automatic, and customizable tree pretty-printing in Rust.
 
 ![Example](https://i.ibb.co/RbpZ0Jk/Screenshot-2022-12-19-at-5-36-09-PM.png)
 

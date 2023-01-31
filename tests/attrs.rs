@@ -18,6 +18,21 @@ fn node_attr_node_label_struct() {
     );
 }
 
+enum E {
+    One,
+    Two,
+}
+struct R(E);
+impl R {
+    fn a(&self) -> E {
+        let b = self.0;
+        return b;
+    }
+}
+fn v() {
+    let a = R(E::One);
+}
+
 #[test]
 fn node_attr_node_label_enum() {
     #[derive(DisplayTree)]
@@ -129,7 +144,6 @@ fn field_attr_ignore_field_struct() {
     );
 }
 
-#[allow(unused_variables)]
 #[test]
 fn field_attr_ignore_field_enum() {
     #[derive(DisplayTree)]
@@ -243,29 +257,29 @@ fn field_attr_tree_enum() {
     );
 }
 
-// #[test]
-// fn field_attr_tree_ref() {
-//     #[derive(DisplayTree)]
-//     enum Tree<'a> {
-//         A { a: i32, b: bool },
-//         B(#[tree] &'a Self),
-//     }
+#[test]
+fn field_attr_tree_ref() {
+    #[derive(DisplayTree)]
+    enum Tree<'a> {
+        A { a: i32, b: bool },
+        B(#[tree] &'a Self),
+    }
 
-//     let tree = Tree::B(&Tree::A { a: 1, b: true });
-//     assert_eq!(
-//         format!("{}", AsTree::new(&tree)),
-//         #[rustfmt::skip]
-//         concat!(
-//             "B\n",
-//             "└── A\n",
-//             "    ├── 1\n",
-//             "    └── true",
-//         ),
-//     );
-// }
+    let tree = Tree::B(&Tree::A { a: 1, b: true });
+    #[rustfmt::skip]
+    assert_eq!(
+        format!("{}", AsTree::new(&tree)),
+        concat!(
+            "B\n",
+            "└── A\n",
+            "    ├── 1\n",
+            "    └── true",
+        ),
+    );
+}
 
 #[test]
-fn field_attr_tree_self() {
+fn field_attr_tree_box() {
     #[derive(DisplayTree)]
     enum Tree {
         A { a: i32, b: bool },
@@ -285,46 +299,48 @@ fn field_attr_tree_self() {
     );
 }
 
-// #[test]
-// fn field_attr_tree_rc() {
-//     use std::rc::Rc;
+#[test]
+fn field_attr_tree_rc() {
+    use std::rc::Rc;
 
-//     #[derive(DisplayTree)]
-//     enum Tree {
-//         A { a: i32, b: bool },
-//         B(#[tree] Rc<Self>),
-//     }
+    #[derive(DisplayTree)]
+    enum Tree {
+        A { a: i32, b: bool },
+        B(#[tree] Rc<Self>),
+    }
 
-//     let tree = Tree::B(Rc::new(Tree::A { a: 1, b: true }));
-//     assert_eq!(
-//         format!("{}", AsTree::new(&tree)),
-//         indoc! {"
-//             B
-//             └── A
-//                 ├── 1
-//                 └── true"
-//         }
-//     );
-// }
+    let tree = Tree::B(Rc::new(Tree::A { a: 1, b: true }));
+    #[rustfmt::skip]
+    assert_eq!(
+        format!("{}", AsTree::new(&tree)),
+        concat!(
+            "B\n",
+            "└── A\n",
+            "    ├── 1\n",
+            "    └── true"
+        )
+    );
+}
 
-// #[test]
-// fn field_attr_tree_arc() {
-//     use std::sync::Arc;
+#[test]
+fn field_attr_tree_arc() {
+    use std::sync::Arc;
 
-//     #[derive(DisplayTree)]
-//     enum Tree {
-//         A { a: i32, b: bool },
-//         B(#[tree] Arc<Self>),
-//     }
+    #[derive(DisplayTree)]
+    enum Tree {
+        A { a: i32, b: bool },
+        B(#[tree] Arc<Self>),
+    }
 
-//     let tree = Tree::B(Arc::new(Tree::A { a: 1, b: true }));
-//     assert_eq!(
-//         format!("{}", AsTree::new(&tree)),
-//         indoc! {"
-//             B
-//             └── A
-//                 ├── 1
-//                 └── true"
-//         }
-//     );
-// }
+    let tree = Tree::B(Arc::new(Tree::A { a: 1, b: true }));
+    #[rustfmt::skip]
+    assert_eq!(
+        format!("{}", AsTree::new(&tree)),
+        concat!(
+            "B\n",
+            "└── A\n",
+            "    ├── 1\n",
+            "    └── true"
+        )
+    );
+}

@@ -1,5 +1,5 @@
-//! A module containing the [`ToDisplayTreeRef`] trait and implementations for
-//! [`std`] types.
+//! A module containing the [`ToDisplayTreeRef`] trait and implementations
+//! for //! [`std`] types.
 
 use std::ops::Deref;
 
@@ -16,51 +16,73 @@ use super::DisplayTree;
 /// [`ToDisplayTreeRef`] should generally not implemented for any new types,
 /// unless you run into an edge case that is not covered by the implementations
 /// provided by [`display_tree`].
-pub trait ToDisplayTreeRef<T: super::DisplayTree> {
+pub trait ToDisplayTreeRef {
+    type Tree: DisplayTree;
     /// Converts this type into a type which implements [`DisplayTree`].
     ///
     /// [`to_display_tree()`](ToDisplayTreeRef::to_display_tree()) should not
     /// be called directly. It is used by [`display_tree_derive`] in the
-    /// code emitted by
-    /// [`derive(DisplayTree)`].
-    fn to_display_tree(&self) -> &T;
+    /// code emitted by `derive(DisplayTree)`.
+    fn to_display_tree(&self) -> &Self::Tree;
 }
 
-impl<T: DisplayTree> ToDisplayTreeRef<T> for T {
-    fn to_display_tree(&self) -> &T {
-        self
-    }
-}
+impl<T: DisplayTree, D: Deref<Target = T>> ToDisplayTreeRef for D {
+    type Tree = T;
 
-impl<T: DisplayTree> ToDisplayTreeRef<T> for &T {
-    fn to_display_tree(&self) -> &T {
-        self
-    }
-}
-
-impl<T: DisplayTree> ToDisplayTreeRef<T> for Box<T> {
-    fn to_display_tree(&self) -> &T {
+    fn to_display_tree(&self) -> &Self::Tree {
         Deref::deref(self)
     }
 }
 
-impl<T: DisplayTree> ToDisplayTreeRef<T> for std::rc::Rc<T> {
-    fn to_display_tree(&self) -> &T {
-        Deref::deref(self)
-    }
-}
+// TODO: just get reference in geneate code instead: Self::A { ref a}
 
-impl<T: DisplayTree> ToDisplayTreeRef<T> for std::sync::Arc<T> {
-    fn to_display_tree(&self) -> &T {
-        Deref::deref(self)
-    }
-}
+// impl<T: DisplayTree> ToDisplayTreeRef for T {
+//     type Tree = T;
 
-impl<'a, T: DisplayTree + Clone> ToDisplayTreeRef<T> for std::borrow::Cow<'a, T> {
-    fn to_display_tree(&self) -> &T {
-        Deref::deref(self)
-    }
-}
+//     fn to_display_tree(&self) -> &T {
+//         self
+//     }
+// }
+
+// impl<T: DisplayTree> ToDisplayTreeRef for &T {
+//     type Tree = T;
+
+//     fn to_display_tree(&self) -> &T {
+//         self
+//     }
+// }
+
+// impl<T: DisplayTree> ToDisplayTreeRef for Box<T> {
+//     type Tree = T;
+
+//     fn to_display_tree(&self) -> &T {
+//         Deref::deref(self)
+//     }
+// }
+
+// impl<T: DisplayTree> ToDisplayTreeRef for std::rc::Rc<T> {
+//     type Tree = T;
+
+//     fn to_display_tree(&self) -> &T {
+//         Deref::deref(self)
+//     }
+// }
+
+// impl<T: DisplayTree> ToDisplayTreeRef for std::sync::Arc<T> {
+//     type Tree = T;
+
+//     fn to_display_tree(&self) -> &T {
+//         Deref::deref(self)
+//     }
+// }
+
+// impl<'a, T: DisplayTree + Clone> ToDisplayTreeRef for std::borrow::Cow<'a, T>
+// {     type Tree = T;
+
+//     fn to_display_tree(&self) -> &T {
+//         Deref::deref(self)
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

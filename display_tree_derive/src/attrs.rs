@@ -74,8 +74,11 @@ pub mod field {
 
     pub const FIELD_LABEL: &str = "field_label";
     pub const IGNORE_FIELD: &str = "ignore_field";
+    // TODO: rename to root_label
     pub const NODE_LABEL: &str = "node_label";
     pub const TREE: &str = "tree";
+    // TODO: Add transparent attribute to signal that everthing should be at the
+    // preious level. Then i can implement DisplayTree for vec and option
 
     pub enum Attribute {
         FieldLabel(Option<String>),

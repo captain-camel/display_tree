@@ -74,8 +74,9 @@
 extern crate self as display_tree;
 
 mod display;
-pub mod to_display_tree_ref;
+mod to_display_tree_ref;
 
+use std::borrow::Cow;
 use std::fmt;
 
 pub use display::*;
@@ -93,11 +94,6 @@ pub use display_tree_derive::DisplayTree;
 /// marked `#[tree]` implement [`std::fmt::Display`]. A derived implementation
 /// will be formatted as the name of the `struct` or variant as a node, followed
 /// by a branches underneath with a node for each field.
-///
-/// The [`AsTree`] type should be used to display a tree implementing
-/// [`DisplayTree`]. See the [`AsTree` documentation](AsTree) for more
-/// information.
-///
 /// ```
 /// use display_tree::{format_tree, AsTree, DisplayTree};
 ///
@@ -148,7 +144,7 @@ pub use display_tree_derive::DisplayTree;
 ///
 /// ## Helper Attributes
 ///
-/// [`derive(DisplayTree)`] provies a few helper attribute that allow the
+/// `derive(DisplayTree)` provies a few helper attribute that allow the
 /// derived implementation to be customized.
 ///
 /// ### Field Attributes
@@ -156,10 +152,7 @@ pub use display_tree_derive::DisplayTree;
 /// - `#[tree]` marks a field that should be formatted as a tree. By default, a
 ///   field's [`std::fmt::Display`] implementation will be used to format it in
 ///   the tree, but fields can be marked with `#[tree]` to use their
-///   [`DisplayTree`] implementation instead. `#[tree]` can be used on any type
-///   that conforms to
-///   [`ToDisplayTreeRef`](to_display_tree_ref::ToDisplayTreeRef), which
-///   includes any types that conform to [`DisplayTree`].
+///   [`DisplayTree`] implementation instead.
 ///
 /// - `#[ignore_field]` marks a field that should not be included in the tree.
 ///   When the tree is formatted, the field will not be present.
@@ -180,6 +173,38 @@ pub use display_tree_derive::DisplayTree;
 ///   tree. By default, the name of the `struct` or variant will be used.
 ///
 /// # Examples
+///
+/// Implementing manually:
+///
+/// ```
+/// use std::borrow::Cow;
+///
+/// use display_tree::{format_tree, DisplayTree, Style};
+///
+/// enum Tree {
+///     A(i32, bool),
+///     B(Box<Self>),
+/// }
+///
+/// impl DisplayTree for Tree {
+///     fn fmt_root(&self) -> Cow<str> {
+///         match self {
+///             Self::A(..) => Cow::Borrowed("A"),
+///             Self::B(..) => Cow::Borrowed("B"),
+///         }
+///     }
+///
+///     fn fmt_leaves(&self, style: Style) -> Vec<String> {
+///         match self {
+///             Self::A(a, b) => vec![
+///                 style.leaf_style.format(&a.to_string()),
+///                 style.leaf_style.format(&b.to_string()),
+///             ],
+///             Self::B(tree) => vec![format_tree!(tree)],
+///         }
+///     }
+/// }
+/// ```
 ///
 /// Specifying a field label:
 ///
@@ -232,15 +257,45 @@ pub use display_tree_derive::DisplayTree;
 /// struct MyVeryLongComplexDetailedImportantStruct(bool);
 /// ```
 pub trait DisplayTree {
-    /// Formats the tree using the given formatter and the given style.
+    /// Returns the string to be used as the root of this tree.
     ///
-    /// [`fmt()`](DisplayTree::fmt()) should not be called directly. It is used
-    /// by [`AsTree`] to format a tree.
+    /// [`fmt_root()`](DisplayTree::fmt_root) returs [`Cow<str>`] to avoid
+    /// always allocating memory for an owned string when it is called. Often,
+    /// the return value will just be a string literal, in which case
+    /// [`fmt_root()`](DisplayTree::fmt_root) can return [`Cow::Borrowed`].
+    ///
+    /// [`fmt_root()`](DisplayTree::fmt_root) should generally not be called
+    /// directly. It is used in default implementations of
+    /// [`DisplayTree::fmt()`].
     ///
     /// # Examples
     ///
     /// ```
-    /// use display_tree::{AsTree, DisplayTree, Style};
+    /// use std::borrow::Cow;
+    ///
+    /// use display_tree::DisplayTree;
+    ///
+    /// struct Tree;
+    ///
+    /// impl DisplayTree for Tree {
+    ///     fn fmt_root(&self) -> Cow<str> {
+    ///         Cow::Borrowed("Tree")
+    ///     }
+    ///
+    ///     // ...
+    /// #   fn fmt_leaves(&self, style: display_tree::Style) -> Vec<String> {
+    /// #       unimplemented!()
+    /// #   }
+    /// }
+    /// ```
+    fn fmt_root(&self) -> Cow<str>;
+
+    /// Returns the leaves of this tree as strings.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use display_tree::{DisplayTree, Style};
     ///
     /// struct Point {
     ///     x: i32,
@@ -248,302 +303,168 @@ pub trait DisplayTree {
     /// }
     ///
     /// impl DisplayTree for Point {
-    ///     fn fmt(&self, f: &mut std::fmt::Formatter<'_>, style: Style) -> std::fmt::Result {
-    ///         writeln!(f, "Point")?;
-    ///         writeln!(
-    ///             f,
-    ///             "{}{} x: {}",
-    ///             style.char_set.connector,
-    ///             std::iter::repeat(style.char_set.horizontal)
-    ///                 .take(style.indentation as usize)
-    ///                 .collect::<String>(),
-    ///             self.x
-    ///         )?;
-    ///         write!(
-    ///             f,
-    ///             "{}{} y: {}",
-    ///             style.char_set.end_connector,
-    ///             std::iter::repeat(style.char_set.horizontal)
-    ///                 .take(style.indentation as usize)
-    ///                 .collect::<String>(),
-    ///             self.y
-    ///         )
+    ///     // ...
+    /// #   fn fmt_root(&self) -> std::borrow::Cow<str> {
+    /// #       unimplemented!()
+    /// #   }
+    ///
+    ///     fn fmt_leaves(&self, style: Style) -> Vec<String> {
+    ///         vec![
+    ///             style.leaf_style.format(&self.x.to_string()),
+    ///             style.leaf_style.format(&self.y.to_string()),
+    ///         ]
     ///     }
     /// }
-    ///
-    /// assert_eq!(
-    ///     format!("{}", AsTree::new(&Point { x: 10, y: 20 })),
-    ///     "Point\n\
-    ///      ├── x: 10\n\
-    ///      └── y: 20",
-    /// );
     /// ```
-    fn fmt(&self, f: &mut fmt::Formatter, style: Style) -> fmt::Result;
-}
+    fn fmt_leaves(&self, style: Style) -> Vec<String>;
 
-/// Prints a type that implements [`DisplayTree`] to the standard output as a
-/// tree.
-///
-/// A [`Style`] can be passed as the second argument to customize the way the
-/// tree is formatted.
-///
-/// # Examples
-///
-/// ```
-/// # #[derive(display_tree::DisplayTree)]
-/// # struct Tree;
-/// # let tree = Tree;
-/// use display_tree::print_tree;
-/// print_tree!(tree);
-/// ```
-///
-/// Specifying a style:
-///
-/// ```
-/// # #[derive(display_tree::DisplayTree)]
-/// # struct Tree;
-/// # let tree = Tree;
-/// use display_tree::{print_tree, Style, StyleBuilder};
-/// print_tree!(tree, Style::default().indentation(1));
-/// ```
-#[macro_export]
-macro_rules! print_tree {
-    ($tree:expr $(,)?) => {
-        ::std::print!("{}", $crate::AsTree::new(&$tree))
-    };
-    ($tree:expr, $style:expr $(,)?) => {
-        ::std::print!("{}", $crate::AsTree::with_style(&$tree, $style))
-    };
-}
+    /// Formats the tree using the given formatter and the given style.
+    ///
+    /// [`fmt()`](DisplayTree::fmt()) should generally not be called directly.
+    /// It is used by [`AsTree`] and formatting macros to format a tree.
+    ///
+    /// [`fmt()`](DisplayTree::fmt()) has a default implementation, so you
+    /// generally shouldn't have to implement this method, unless you want fine
+    /// control over how the tree is formatted.
+    fn fmt(&self, f: &mut fmt::Formatter, style: Style) -> fmt::Result {
+        write!(f, "{}", style.leaf_style.format(&self.fmt_root()))?;
 
-/// Prints a type that implements [`DisplayTree`] to the standard output as a
-/// tree, with a newline.
-///
-/// A [`Style`] can be passed as the second argument to customize the way the
-/// tree is formatted.
-///
-/// # Examples
-///
-/// ```
-/// # #[derive(display_tree::DisplayTree)]
-/// # struct Tree;
-/// # let tree = Tree;
-/// use display_tree::println_tree;
-/// println_tree!(tree)
-/// ```
-///
-/// Specifying a style:
-///
-/// ```
-/// # #[derive(display_tree::DisplayTree)]
-/// # struct Tree;
-/// # let tree = Tree;
-/// use display_tree::{println_tree, Style, StyleBuilder};
-/// println_tree!(tree, Style::default().indentation(1));
-/// ```
-#[macro_export]
-macro_rules! println_tree {
-    ($tree:expr $(,)?) => {
-        ::std::println!("{}", $crate::AsTree::new(&$tree))
-    };
-    ($tree:expr, $style:expr $(,)?) => {
-        ::std::println!("{}", $crate::AsTree::with_style(&$tree, $style))
-    };
-}
+        let leaves = self.fmt_leaves(style);
+        for (index, leaf) in leaves.iter().enumerate() {
+            let s = style.leaf_style.format(leaf);
+            let mut lines = s.lines();
 
-/// Writes a type that implements [`DisplayTree`] to a buffer as a tree.
-///
-/// A [`Style`] can be passed as the second argument to customize the way the
-/// tree is formatted.
-///
-/// # Examples
-///
-/// ```
-/// # use std::io::Write;
-/// use display_tree::write_tree;
-///
-/// #[derive(display_tree::DisplayTree)]
-/// struct Tree;
-///
-/// let mut buf = Vec::new();
-/// write_tree!(&mut buf, Tree);
-///
-/// assert_eq!(&buf, "Tree".as_bytes());
-/// ```
-///
-/// Specifying a style:
-///
-/// ```
-/// # use std::io::Write;
-/// use display_tree::{write_tree, CharSet, Style, StyleBuilder};
-///
-/// #[derive(display_tree::DisplayTree)]
-/// struct Tree {
-///     a: i32,
-///     b: bool,
-/// }
-///
-/// let mut buf = Vec::new();
-/// write_tree!(
-///     &mut buf,
-///     Tree { a: 1, b: true },
-///     Style::default().char_set(CharSet::SINGLE_LINE_CURVED)
-/// );
-///
-/// assert_eq!(
-///     &buf,
-///     "Tree\n\
-///      ├── 1\n\
-///      ╰── true"
-///         .as_bytes()
-/// );
-/// ```
-#[macro_export]
-macro_rules! write_tree {
-    ($f:expr, $tree:expr $(,)?) => {
-        ::std::write!($f, "{}", $crate::AsTree::new(&$tree))
-    };
-    ($f:expr, $tree:expr, $style:expr $(,)?) => {
-        ::std::write!($f, "{}", $crate::AsTree::with_style(&$tree, $style))
-    };
-}
+            let branch = format!(
+                "{}{} ",
+                if index < leaves.len() - 1 {
+                    style.char_set.connector
+                } else {
+                    style.char_set.end_connector
+                },
+                std::iter::repeat(style.char_set.horizontal)
+                    .take(style.indentation as usize)
+                    .collect::<String>()
+            );
 
-/// Writes a type that implements [`DisplayTree`] to a buffer as a tree, with a
-/// newline.
-///
-/// A [`Style`] can be passed as the second argument to customize the way the
-/// tree is formatted.
-///
-/// # Examples
-///
-/// ```
-/// # use std::io::Write;
-/// use display_tree::writeln_tree;
-///
-/// #[derive(display_tree::DisplayTree)]
-/// struct Tree;
-///
-/// let mut buf = Vec::new();
-/// writeln_tree!(&mut buf, Tree);
-///
-/// assert_eq!(&buf, "Tree\n".as_bytes());
-/// ```
-///
-/// Specifying a style:
-///
-/// ```
-/// # use std::io::Write;
-/// use display_tree::{writeln_tree, CharSet, Style, StyleBuilder};
-///
-/// #[derive(display_tree::DisplayTree)]
-/// struct Tree {
-///     a: i32,
-///     b: bool,
-/// }
-///
-/// let mut buf = Vec::new();
-/// writeln_tree!(
-///     &mut buf,
-///     Tree { a: 1, b: true },
-///     Style::default().char_set(CharSet::SINGLE_LINE_BOLD)
-/// );
-///
-/// assert_eq!(
-///     &buf,
-///     "Tree\n\
-///      ┣━━ 1\n\
-///      ┗━━ true\n"
-///         .as_bytes()
-/// );
-/// ```
-#[macro_export]
-macro_rules! writeln_tree {
-    ($f:expr, $tree:expr $(,)?) => {
-        ::std::writeln!($f, "{}", $crate::AsTree::new(&$tree))
-    };
-    ($f:expr, $tree:expr, $style:expr $(,)?) => {
-        ::std::writeln!($f, "{}", $crate::AsTree::with_style(&$tree, $style))
-    };
-}
+            write!(f, "\n{branch}{}", lines.next().unwrap_or_default())?;
 
-/// Creates a [`String`] from a type that implements [`DisplayTree`], formatting
-/// it as a tree.
-///
-/// A [`Style`] can be passed as the second argument to customize the way the
-/// tree is formatted.
-///
-/// # Examples
-///
-/// ```
-/// use display_tree::format_tree;
-///
-/// #[derive(display_tree::DisplayTree)]
-/// struct Tree;
-///
-/// assert_eq!(format_tree!(Tree), "Tree")
-/// ```
-///
-/// Specifying a style:
-///
-/// ```
-/// use display_tree::{format_tree, Style, StyleBuilder};
-///
-/// #[derive(display_tree::DisplayTree)]
-/// struct Tree {
-///     a: i32,
-///     b: bool,
-/// }
-///
-/// assert_eq!(
-///     format_tree!(Tree { a: 1, b: true }, Style::default().indentation(1)),
-///     "Tree\n\
-///      ├─ 1\n\
-///      └─ true"
-/// );
-/// ```
-#[macro_export]
-macro_rules! format_tree {
-    ($tree:expr $(,)?) => {
-        ::std::format!("{}", $crate::AsTree::new(&$tree))
-    };
-    ($tree:expr, $style:expr $(,)?) => {
-        ::std::format!("{}", $crate::AsTree::with_style(&$tree, $style))
-    };
-}
+            for line in lines {
+                let branch = format!(
+                    "{}{} ",
+                    if index < leaves.len() - 1 {
+                        style.char_set.vertical
+                    } else {
+                        ' '
+                    },
+                    " ".repeat(style.indentation as usize)
+                );
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn write() {
-        use std::io::Write;
+                write!(f, "\n{branch}{}", line)?;
+            }
+        }
 
-        #[derive(display_tree::DisplayTree)]
-        struct Tree;
-
-        let mut buf = Vec::new();
-        display_tree::write_tree!(&mut buf, Tree).unwrap();
-
-        assert_eq!(&buf, "Tree".as_bytes());
-    }
-
-    #[test]
-    fn writeln() {
-        use std::io::Write;
-
-        #[derive(display_tree::DisplayTree)]
-        struct Tree;
-
-        let mut buf = Vec::new();
-        display_tree::writeln_tree!(&mut buf, Tree).unwrap();
-
-        assert_eq!(&buf, "Tree\n".as_bytes());
-    }
-
-    #[test]
-    fn format() {
-        #[derive(display_tree::DisplayTree)]
-        struct Tree;
-
-        assert_eq!(display_tree::format_tree!(Tree), "Tree")
+        Ok(())
+        // let s = style.leaf_style.format(&::std::format!("{}", self.a));
+        // let mut lines = s.lines();
+        // write!(
+        //     __display_tree_f,
+        //     "\n{}{}",
+        //     __display_tree_style.branch_style.format(&::std::format!(
+        //         "{}{} ",
+        //         __display_tree_style.char_set.connector,
+        //         std::iter::repeat(__display_tree_style.char_set.horizontal)
+        //             .take(__display_tree_style.indentation as usize)
+        //             .collect::<String>()
+        //     )),
+        //     lines.next().unwrap_or_default(),
+        // )?;
+        // for line in lines {
+        //     write!(
+        //         __display_tree_f,
+        //         "\n{}{}",
+        //         __display_tree_style.branch_style.format(&::std::format!(
+        //             "{}{} ",
+        //             __display_tree_style.char_set.vertical,
+        //             std::iter::repeat(' ')
+        //                 .take(__display_tree_style.indentation as usize)
+        //                 .collect::<String>()
+        //         )),
+        //         line,
+        //     )?;
+        // }
+        // let s = ::std::format!(
+        //     "{}",
+        //     ::display_tree::AsTree::with_style(
+        //         ::display_tree::to_display_tree_ref::ToDisplayTreeRef::to_display_tree(&self.b),
+        //         __display_tree_style
+        //     )
+        // );
+        // let mut lines = s.lines();
+        // write!(
+        //     __display_tree_f,
+        //     "\n{}{}",
+        //     __display_tree_style.branch_style.format(&::std::format!(
+        //         "{}{} ",
+        //         __display_tree_style.char_set.end_connector,
+        //         std::iter::repeat(__display_tree_style.char_set.horizontal)
+        //             .take(__display_tree_style.indentation as usize)
+        //             .collect::<String>()
+        //     )),
+        //     lines.next().unwrap_or_default(),
+        // )?;
+        // for line in lines {
+        //     write!(
+        //         __display_tree_f,
+        //         "\n{}{}",
+        //         __display_tree_style.branch_style.format(&::std::format!(
+        //             " {} ",
+        //             std::iter::repeat(' ')
+        //                 .take(__display_tree_style.indentation as usize)
+        //                 .collect::<String>()
+        //         )),
+        //         line,
+        //     )?;
+        // }
+        // Ok(())
     }
 }
+
+// impl<'a, T: DisplayTree> DisplayTree for &'a T {
+//     fn fmt_root(&self) -> Cow<str> {
+//         <T as DisplayTree>::fmt_root(self)
+//     }
+
+//     fn fmt_leaves(&self, style: Style) -> Vec<String> {
+//         <T as DisplayTree>::fmt_leaves(self, style)
+//     }
+// }
+
+// impl<T: DisplayTree> DisplayTree for Box<T> {
+//     fn fmt_root(&self) -> Cow<str> {
+//         <T as DisplayTree>::fmt_root(self)
+//     }
+
+//     fn fmt_leaves(&self, style: Style) -> Vec<String> {
+//         <T as DisplayTree>::fmt_leaves(self, style)
+//     }
+// }
+
+// impl<T: DisplayTree> DisplayTree for std::rc::Rc<T> {
+//     fn fmt_root(&self) -> Cow<str> {
+//         <T as DisplayTree>::fmt_root(self)
+//     }
+
+//     fn fmt_leaves(&self, style: Style) -> Vec<String> {
+//         <T as DisplayTree>::fmt_leaves(self, style)
+//     }
+// }
+
+// impl<T: DisplayTree> DisplayTree for std::sync::Arc<T> {
+//     fn fmt_root(&self) -> Cow<str> {
+//         <T as DisplayTree>::fmt_root(self)
+//     }
+
+//     fn fmt_leaves(&self, style: Style) -> Vec<String> {
+//         <T as DisplayTree>::fmt_leaves(self, style)
+//     }
+// }

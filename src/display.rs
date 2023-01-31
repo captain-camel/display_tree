@@ -104,15 +104,15 @@ impl<'a, T: DisplayTree> AsTree<'a, T> {
     }
 }
 
-impl<'a, T: DisplayTree> StyleBuilder for AsTree<'a, T> {
-    fn style_mut(&mut self) -> &mut Style {
-        &mut self.style
-    }
-}
-
 impl<'a, T: DisplayTree> fmt::Display for AsTree<'a, T> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.tree.fmt(f, self.style)
+    }
+}
+
+impl<'a, T: DisplayTree> StyleBuilder for AsTree<'a, T> {
+    fn style_mut(&mut self) -> &mut Style {
+        &mut self.style
     }
 }
 
@@ -197,12 +197,12 @@ pub struct TextStyle {
 }
 
 impl TextStyle {
-    /// Applies the style to a string.
+    /// Formats a string with this style.
     ///
-    /// [`apply()`](TextStyle::apply()) should not be called unless you are
+    /// [`format()`](TextStyle::format()) should not be called unless you are
     /// manually implementing [`DisplayTree`]. It is used in derived
     /// [`DisplayTree`] implementations.
-    pub fn apply(&self, string: &str) -> String {
+    pub fn format(&self, string: &str) -> String {
         use std::borrow::Cow;
 
         let mut ansi_codes: Vec<Cow<str>> = Vec::new();
@@ -538,6 +538,236 @@ pub trait StyleBuilder: Sized {
     }
 }
 
+/// Prints a type that implements [`DisplayTree`] to the standard output as a
+/// tree.
+///
+/// A [`Style`] can be passed as the second argument to customize the way the
+/// tree is formatted.
+///
+/// # Examples
+///
+/// ```
+/// # #[derive(display_tree::DisplayTree)]
+/// # struct Tree;
+/// # let tree = Tree;
+/// use display_tree::print_tree;
+/// print_tree!(tree);
+/// ```
+///
+/// Specifying a style:
+///
+/// ```
+/// # #[derive(display_tree::DisplayTree)]
+/// # struct Tree;
+/// # let tree = Tree;
+/// use display_tree::{print_tree, Style, StyleBuilder};
+/// print_tree!(tree, Style::default().indentation(1));
+/// ```
+#[macro_export]
+macro_rules! print_tree {
+    ($tree:expr $(,)?) => {
+        ::std::print!("{}", $crate::AsTree::new($tree))
+    };
+    ($tree:expr, $style:expr $(,)?) => {
+        ::std::print!("{}", $crate::AsTree::with_style($tree, $style))
+    };
+}
+
+/// Prints a type that implements [`DisplayTree`] to the standard output as a
+/// tree, with a newline.
+///
+/// A [`Style`] can be passed as the second argument to customize the way the
+/// tree is formatted.
+///
+/// # Examples
+///
+/// ```
+/// # #[derive(display_tree::DisplayTree)]
+/// # struct Tree;
+/// # let tree = Tree;
+/// use display_tree::println_tree;
+/// println_tree!(tree)
+/// ```
+///
+/// Specifying a style:
+///
+/// ```
+/// # #[derive(display_tree::DisplayTree)]
+/// # struct Tree;
+/// # let tree = Tree;
+/// use display_tree::{println_tree, Style, StyleBuilder};
+/// println_tree!(tree, Style::default().indentation(1));
+/// ```
+#[macro_export]
+macro_rules! println_tree {
+    ($tree:expr $(,)?) => {
+        ::std::println!("{}", $crate::AsTree::new($tree))
+    };
+    ($tree:expr, $style:expr $(,)?) => {
+        ::std::println!("{}", $crate::AsTree::with_style($tree, $style))
+    };
+}
+
+/// Writes a type that implements [`DisplayTree`] to a buffer as a tree.
+///
+/// A [`Style`] can be passed as the second argument to customize the way the
+/// tree is formatted.
+///
+/// # Examples
+///
+/// ```
+/// # use std::io::Write;
+/// use display_tree::write_tree;
+///
+/// #[derive(display_tree::DisplayTree)]
+/// struct Tree;
+///
+/// let mut buf = Vec::new();
+/// write_tree!(&mut buf, Tree);
+///
+/// assert_eq!(&buf, "Tree".as_bytes());
+/// ```
+///
+/// Specifying a style:
+///
+/// ```
+/// # use std::io::Write;
+/// use display_tree::{write_tree, CharSet, Style, StyleBuilder};
+///
+/// #[derive(display_tree::DisplayTree)]
+/// struct Tree {
+///     a: i32,
+///     b: bool,
+/// }
+///
+/// let mut buf = Vec::new();
+/// write_tree!(
+///     &mut buf,
+///     Tree { a: 1, b: true },
+///     Style::default().char_set(CharSet::SINGLE_LINE_CURVED)
+/// );
+///
+/// assert_eq!(
+///     &buf,
+///     "Tree\n\
+///      ├── 1\n\
+///      ╰── true"
+///         .as_bytes()
+/// );
+/// ```
+#[macro_export]
+macro_rules! write_tree {
+    ($f:expr, $tree:expr $(,)?) => {
+        ::std::write!($f, "{}", $crate::AsTree::new($tree))
+    };
+    ($f:expr, $tree:expr, $style:expr $(,)?) => {
+        ::std::write!($f, "{}", $crate::AsTree::with_style($tree, $style))
+    };
+}
+
+/// Writes a type that implements [`DisplayTree`] to a buffer as a tree, with a
+/// newline.
+///
+/// A [`Style`] can be passed as the second argument to customize the way the
+/// tree is formatted.
+///
+/// # Examples
+///
+/// ```
+/// # use std::io::Write;
+/// use display_tree::writeln_tree;
+///
+/// #[derive(display_tree::DisplayTree)]
+/// struct Tree;
+///
+/// let mut buf = Vec::new();
+/// writeln_tree!(&mut buf, Tree);
+///
+/// assert_eq!(&buf, "Tree\n".as_bytes());
+/// ```
+///
+/// Specifying a style:
+///
+/// ```
+/// # use std::io::Write;
+/// use display_tree::{writeln_tree, CharSet, Style, StyleBuilder};
+///
+/// #[derive(display_tree::DisplayTree)]
+/// struct Tree {
+///     a: i32,
+///     b: bool,
+/// }
+///
+/// let mut buf = Vec::new();
+/// writeln_tree!(
+///     &mut buf,
+///     Tree { a: 1, b: true },
+///     Style::default().char_set(CharSet::SINGLE_LINE_BOLD)
+/// );
+///
+/// assert_eq!(
+///     &buf,
+///     "Tree\n\
+///      ┣━━ 1\n\
+///      ┗━━ true\n"
+///         .as_bytes()
+/// );
+/// ```
+#[macro_export]
+macro_rules! writeln_tree {
+    ($f:expr, $tree:expr $(,)?) => {
+        ::std::writeln!($f, "{}", $crate::AsTree::new($tree))
+    };
+    ($f:expr, $tree:expr, $style:expr $(,)?) => {
+        ::std::writeln!($f, "{}", $crate::AsTree::with_style($tree, $style))
+    };
+}
+
+/// Creates a [`String`] from a type that implements [`DisplayTree`], formatting
+/// it as a tree.
+///
+/// A [`Style`] can be passed as the second argument to customize the way the
+/// tree is formatted.
+///
+/// # Examples
+///
+/// ```
+/// use display_tree::format_tree;
+///
+/// #[derive(display_tree::DisplayTree)]
+/// struct Tree;
+///
+/// assert_eq!(format_tree!(Tree), "Tree")
+/// ```
+///
+/// Specifying a style:
+///
+/// ```
+/// use display_tree::{format_tree, Style, StyleBuilder};
+///
+/// #[derive(display_tree::DisplayTree)]
+/// struct Tree {
+///     a: i32,
+///     b: bool,
+/// }
+///
+/// assert_eq!(
+///     format_tree!(Tree { a: 1, b: true }, Style::default().indentation(1)),
+///     "Tree\n\
+///      ├─ 1\n\
+///      └─ true"
+/// );
+/// ```
+#[macro_export]
+macro_rules! format_tree {
+    ($tree:expr $(,)?) => {
+        ::std::format!("{}", $crate::AsTree::new($tree))
+    };
+    ($tree:expr, $style:expr $(,)?) => {
+        ::std::format!("{}", $crate::AsTree::with_style($tree, $style))
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -545,7 +775,7 @@ mod tests {
     #[test]
     fn plain() {
         let style = TextStyle::default();
-        assert_eq!(style.apply("text"), "text")
+        assert_eq!(style.format("text"), "text")
     }
 
     #[test]
@@ -554,7 +784,7 @@ mod tests {
             text_color: Some(Color::Red),
             ..TextStyle::default()
         };
-        assert_eq!(style.apply("text"), "\x1b[31mtext\x1b[0m")
+        assert_eq!(style.format("text"), "\x1b[31mtext\x1b[0m")
     }
 
     #[test]
@@ -563,7 +793,7 @@ mod tests {
             background_color: Some(Color::Red),
             ..TextStyle::default()
         };
-        assert_eq!(style.apply("text"), "\x1b[41mtext\x1b[0m")
+        assert_eq!(style.format("text"), "\x1b[41mtext\x1b[0m")
     }
 
     #[test]
@@ -572,7 +802,7 @@ mod tests {
             is_bold: true,
             ..TextStyle::default()
         };
-        assert_eq!(style.apply("text"), "\x1b[1mtext\x1b[0m")
+        assert_eq!(style.format("text"), "\x1b[1mtext\x1b[0m")
     }
 
     #[test]
@@ -581,7 +811,7 @@ mod tests {
             is_faint: true,
             ..TextStyle::default()
         };
-        assert_eq!(style.apply("text"), "\x1b[2mtext\x1b[0m")
+        assert_eq!(style.format("text"), "\x1b[2mtext\x1b[0m")
     }
 
     #[test]
@@ -590,7 +820,7 @@ mod tests {
             is_italic: true,
             ..TextStyle::default()
         };
-        assert_eq!(style.apply("text"), "\x1b[3mtext\x1b[0m")
+        assert_eq!(style.format("text"), "\x1b[3mtext\x1b[0m")
     }
 
     #[test]
@@ -599,7 +829,7 @@ mod tests {
             is_underlined: true,
             ..TextStyle::default()
         };
-        assert_eq!(style.apply("text"), "\x1b[4mtext\x1b[0m")
+        assert_eq!(style.format("text"), "\x1b[4mtext\x1b[0m")
     }
 
     #[test]
@@ -608,6 +838,40 @@ mod tests {
             is_strikethrough: true,
             ..TextStyle::default()
         };
-        assert_eq!(style.apply("text"), "\x1b[9mtext\x1b[0m")
+        assert_eq!(style.format("text"), "\x1b[9mtext\x1b[0m")
+    }
+
+    #[test]
+    fn write() {
+        use std::io::Write;
+
+        #[derive(display_tree::DisplayTree)]
+        struct Tree;
+
+        let mut buf = Vec::new();
+        display_tree::write_tree!(&mut buf, &Tree).unwrap();
+
+        assert_eq!(&buf, "Tree".as_bytes());
+    }
+
+    #[test]
+    fn writeln() {
+        use std::io::Write;
+
+        #[derive(display_tree::DisplayTree)]
+        struct Tree;
+
+        let mut buf = Vec::new();
+        display_tree::writeln_tree!(&mut buf, &Tree).unwrap();
+
+        assert_eq!(&buf, "Tree\n".as_bytes());
+    }
+
+    #[test]
+    fn format() {
+        #[derive(display_tree::DisplayTree)]
+        struct Tree;
+
+        assert_eq!(display_tree::format_tree!(&Tree), "Tree")
     }
 }

@@ -18,21 +18,6 @@ fn node_attr_node_label_struct() {
     );
 }
 
-enum E {
-    One,
-    Two,
-}
-struct R(E);
-impl R {
-    fn a(&self) -> E {
-        let b = self.0;
-        return b;
-    }
-}
-fn v() {
-    let a = R(E::One);
-}
-
 #[test]
 fn node_attr_node_label_enum() {
     #[derive(DisplayTree)]

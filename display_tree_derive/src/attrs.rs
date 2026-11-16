@@ -13,32 +13,33 @@ pub mod node {
 
     impl Attribute {
         pub fn parse(attribute: &syn::Attribute) -> Option<Result<Self, AttributeParseError>> {
-            // FIXME: This should probably be parsed manually, currently it will miss
-            // recognized attributes that are in the wrong format.
-            let meta = attribute.parse_meta().ok()?;
 
-            match meta.path().get_ident()?.to_string().as_str() {
-                NODE_LABEL => {
-                    if let syn::Meta::NameValue(syn::MetaNameValue { lit: literal, .. }) = meta {
-                        if let syn::Lit::Str(label) = literal {
+            let (_, meta) = match super::recognized_meta(attribute, &[NODE_LABEL])? {
+                Ok(found) => found, //Yay!
+                Err(error) => return Some(Err(error)),
+            };
+
+            
+            if let syn::Meta::NameValue(syn::MetaNameValue { lit: literal, .. }) = meta {
+                if let syn::Lit::Str(label) = literal {
                             Some(Ok(Self::NodeLabel(label.value())))
-                        } else {
+                } else {
                             Some(Err(AttributeParseError::new(
                                 AttributeParseErrorKind::ExpectedStringLiteral(NODE_LABEL),
                                 attribute.span(),
                             )))
                         }
-                    } else {
+            } else {
                         Some(Err(AttributeParseError::new(
                             AttributeParseErrorKind::ExpectedEqual(NODE_LABEL),
                             attribute.span(),
                         )))
                     }
-                }
-                _ => None,
             }
-        }
+                
     }
+        
+    
 
     pub struct Config {
         pub node_label: Option<String>,
@@ -75,22 +76,25 @@ pub mod field {
     pub const FIELD_LABEL: &str = "field_label";
     pub const IGNORE_FIELD: &str = "ignore_field";
     pub const NODE_LABEL: &str = "node_label";
+    pub const OPTIONAL_FIELD: &str = "optional_field";
     pub const TREE: &str = "tree";
 
     pub enum Attribute {
         FieldLabel(Option<String>),
         IgnoreField,
         NodeLabel,
+        OptionalField,
         Tree,
     }
 
     impl Attribute {
         pub fn parse(attribute: &syn::Attribute) -> Option<Result<Self, AttributeParseError>> {
-            // FIXME: This should probably be parsed manually, currently it will miss
-            // recognized attributes that are in the wrong format.
-            let meta = attribute.parse_meta().ok()?;
+            let (name, meta) = match super::recognized_meta(attribute, &[FIELD_LABEL, IGNORE_FIELD, NODE_LABEL, OPTIONAL_FIELD, TREE],)? {
+                Ok(found) => found,
+                Err(error) => return Some(Err(error)),
+            };
 
-            Some(match meta.path().get_ident()?.to_string().as_str() {
+            Some(match name {
                 FIELD_LABEL => match meta {
                     syn::Meta::Path(_) => Ok(Self::FieldLabel(None)),
                     syn::Meta::NameValue(syn::MetaNameValue { lit: literal, .. }) => {
@@ -130,6 +134,20 @@ pub mod field {
                         ))
                     }
                 }
+
+                OPTIONAL_FIELD => {
+                    //Hold for Option<&T>
+                    if matches!(meta, syn::Meta::Path(_)) {
+                        Ok(Self::OptionalField)
+                    } else {
+                        Err(AttributeParseError::new(
+                            AttributeParseErrorKind::UnexpectedArgument(OPTIONAL_FIELD),
+                            attribute.span(),
+                        ))
+                    }
+
+                }
+
                 TREE => {
                     // The `tree` attribute should only be a path, no arguments.
                     if matches!(meta, syn::Meta::Path(_)) {
@@ -141,7 +159,10 @@ pub mod field {
                         ))
                     }
                 }
-                _ => return None,
+                _ => Err(AttributeParseError::new(
+                    AttributeParseErrorKind::Malformed(name), //unreachable!(recognized_meta should only return name from list)
+                    attribute.span(),
+                )),
             })
         }
     }
@@ -150,6 +171,7 @@ pub mod field {
         pub field_label: FieldLabel,
         pub is_ignored: bool,
         pub is_node_label: bool,
+        pub is_optional: bool,
         pub is_tree: bool,
     }
 
@@ -165,6 +187,7 @@ pub mod field {
                 field_label: FieldLabel::None,
                 is_ignored: false,
                 is_node_label: false,
+                is_optional: false,
                 is_tree: false,
             }
         }
@@ -191,6 +214,10 @@ pub mod field {
                             is_node_label: true,
                             ..config
                         },
+                        Attribute::OptionalField => Self {
+                            is_optional: true,
+                            ..config
+                        },
                         Attribute::Tree => Self {
                             is_tree: true,
                             ..config
@@ -211,6 +238,13 @@ pub mod field {
                     attributes.first().span(),
                 ));
             }
+
+            if config.is_ignored && config.is_optional {
+                return Err(AttributeParseError::new(
+                    AttributeParseErrorKind::Confict(IGNORE_FIELD, OPTIONAL_FIELD),
+                    attributes.first().span(),
+            ));
+}
 
             Ok(config)
         }
@@ -234,6 +268,19 @@ impl AttributeParseError {
     fn new(kind: AttributeParseErrorKind, span: Span) -> Self {
         Self { kind, span }
     }
+}
+
+//Helper for parsing attributes, return Err if not recognized, else return matched name and parsed meta.
+fn recognized_meta(attribute: &syn::Attribute, names: &[&'static str],) -> Option<Result<(&'static str, syn::Meta), AttributeParseError>> {
+    use syn::spanned::Spanned;
+
+    let ident = attribute.path.get_ident()?.to_string();
+    let name = names.iter().copied().find(|name| ident == *name)?;
+    Some(match attribute.parse_meta() {
+        Ok(meta) => Ok((name, meta)),
+        Err(_) => Err(AttributeParseError::new(AttributeParseErrorKind::Malformed(name), attribute.span())),
+    
+    })
 }
 
 impl std::fmt::Display for AttributeParseError {

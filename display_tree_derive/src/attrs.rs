@@ -13,33 +13,30 @@ pub mod node {
 
     impl Attribute {
         pub fn parse(attribute: &syn::Attribute) -> Option<Result<Self, AttributeParseError>> {
+            let meta = attribute.parse_meta().ok()?;
 
-            let (_, meta) = match super::recognized_meta(attribute, &[NODE_LABEL])? {
-                Ok(found) => found, //Yay!
-                Err(error) => return Some(Err(error)),
-            };
-
-            
-            if let syn::Meta::NameValue(syn::MetaNameValue { lit: literal, .. }) = meta {
-                if let syn::Lit::Str(label) = literal {
+            match meta.path().get_ident()?.to_string().as_str() {
+                NODE_LABEL => {
+                    if let syn::Meta::NameValue(syn::MetaNameValue { lit: literal, .. }) = meta {
+                        if let syn::Lit::Str(label) = literal {
                             Some(Ok(Self::NodeLabel(label.value())))
-                } else {
+                        } else {
                             Some(Err(AttributeParseError::new(
                                 AttributeParseErrorKind::ExpectedStringLiteral(NODE_LABEL),
                                 attribute.span(),
                             )))
                         }
-            } else {
+                    } else {
                         Some(Err(AttributeParseError::new(
                             AttributeParseErrorKind::ExpectedEqual(NODE_LABEL),
                             attribute.span(),
                         )))
                     }
+                }
+                _ => None,
             }
-                
+        }
     }
-        
-    
 
     pub struct Config {
         pub node_label: Option<String>,
@@ -55,11 +52,10 @@ pub mod node {
         pub fn from(attributes: &[syn::Attribute]) -> Result<Self, AttributeParseError> {
             attributes.iter().flat_map(Attribute::parse).try_fold(
                 Self::default(),
-                |config, attribute| {
+                |_config, attribute: Result<Attribute, AttributeParseError>| {
                     Ok(match attribute? {
                         Attribute::NodeLabel(label) => Self {
                             node_label: Some(label),
-                            ..config
                         },
                     })
                 },
@@ -89,12 +85,9 @@ pub mod field {
 
     impl Attribute {
         pub fn parse(attribute: &syn::Attribute) -> Option<Result<Self, AttributeParseError>> {
-            let (name, meta) = match super::recognized_meta(attribute, &[FIELD_LABEL, IGNORE_FIELD, NODE_LABEL, OPTIONAL_FIELD, TREE],)? {
-                Ok(found) => found,
-                Err(error) => return Some(Err(error)),
-            };
+            let meta = attribute.parse_meta().ok()?;
 
-            Some(match name {
+            Some(match meta.path().get_ident()?.to_string().as_str() {
                 FIELD_LABEL => match meta {
                     syn::Meta::Path(_) => Ok(Self::FieldLabel(None)),
                     syn::Meta::NameValue(syn::MetaNameValue { lit: literal, .. }) => {
@@ -134,7 +127,6 @@ pub mod field {
                         ))
                     }
                 }
-
                 OPTIONAL_FIELD => {
                     //Hold for Option<&T>
                     if matches!(meta, syn::Meta::Path(_)) {
@@ -145,9 +137,7 @@ pub mod field {
                             attribute.span(),
                         ))
                     }
-
                 }
-
                 TREE => {
                     // The `tree` attribute should only be a path, no arguments.
                     if matches!(meta, syn::Meta::Path(_)) {
@@ -159,10 +149,7 @@ pub mod field {
                         ))
                     }
                 }
-                _ => Err(AttributeParseError::new(
-                    AttributeParseErrorKind::Malformed(name), //unreachable!(recognized_meta should only return name from list)
-                    attribute.span(),
-                )),
+                _ => return None,
             })
         }
     }
@@ -243,8 +230,8 @@ pub mod field {
                 return Err(AttributeParseError::new(
                     AttributeParseErrorKind::Confict(IGNORE_FIELD, OPTIONAL_FIELD),
                     attributes.first().span(),
-            ));
-}
+                ));
+            }
 
             Ok(config)
         }
@@ -268,19 +255,6 @@ impl AttributeParseError {
     fn new(kind: AttributeParseErrorKind, span: Span) -> Self {
         Self { kind, span }
     }
-}
-
-//Helper for parsing attributes, return Err if not recognized, else return matched name and parsed meta.
-fn recognized_meta(attribute: &syn::Attribute, names: &[&'static str],) -> Option<Result<(&'static str, syn::Meta), AttributeParseError>> {
-    use syn::spanned::Spanned;
-
-    let ident = attribute.path.get_ident()?.to_string();
-    let name = names.iter().copied().find(|name| ident == *name)?;
-    Some(match attribute.parse_meta() {
-        Ok(meta) => Ok((name, meta)),
-        Err(_) => Err(AttributeParseError::new(AttributeParseErrorKind::Malformed(name), attribute.span())),
-    
-    })
 }
 
 impl std::fmt::Display for AttributeParseError {

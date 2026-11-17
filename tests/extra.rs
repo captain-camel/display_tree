@@ -1,7 +1,5 @@
 use display_tree::*;
 
-
-
 // Check generics
 #[test]
 fn struct_generic_param() {
@@ -9,13 +7,8 @@ fn struct_generic_param() {
     struct Tree<Any> {
         a: Any,
         b: Any,
-       
     }
-    let tree: Tree<&str> = Tree {
-        a: "A",
-        b: "B",
-        
-    };
+    let tree: Tree<&str> = Tree { a: "A", b: "B" };
 
     assert_eq!(
         format!("{}", AsTree::new(&tree)),
@@ -24,8 +17,6 @@ fn struct_generic_param() {
          └── B",
     );
     println!("{}", AsTree::new(&tree));
-
-
 }
 
 // Check generics
@@ -36,14 +27,8 @@ fn struct_multiple_params() {
         a: i32,
         b: i32,
         c: i32,
-       
     }
-    let tree: Tree = Tree {
-        a: 1,
-        b: 2,
-        c: 3,
-        
-    };
+    let tree: Tree = Tree { a: 1, b: 2, c: 3 };
 
     assert_eq!(
         format!("{}", AsTree::new(&tree)),
@@ -53,30 +38,23 @@ fn struct_multiple_params() {
          └── 3",
     );
     println!("{}", AsTree::new(&tree));
-
-
 }
 
-
 //Typical rec call
- 
+
 #[test]
 fn struct_recursive() {
-    
     #[derive(DisplayTree)]
     struct Tree<T> {
         value: T,
-        
+
         #[tree]
         #[optional_field]
         left: Option<Box<Tree<T>>>,
-        
-        
+
         #[tree]
         #[optional_field]
         right: Option<Box<Tree<T>>>,
-    
-
     }
     let tree: Tree<i32> = Tree {
         value: 16,
@@ -90,7 +68,6 @@ fn struct_recursive() {
                     left: None,
                     right: None,
                 })),
-
             })),
             right: Some(Box::new(Tree {
                 value: 128,
@@ -104,34 +81,29 @@ fn struct_recursive() {
         })),
         right: None,
     };
-    
+
     println!("{}", AsTree::new(&tree));
     assert_eq!(
         format!("{}", AsTree::new(&tree)),
         concat!(
-        "Tree\n",
-        "├── 16\n",
-        "└── Tree\n",
-        "    ├── 32\n",
-        "    ├── Tree\n",
-        "    │   ├── 64\n",
-        "    │   └── Tree\n",
-        "    │       └── 0\n",
-        "    └── Tree\n",
-        "        ├── 128\n",
-        "        └── Tree\n",
-        "            └── 256"
-                ),
+            "Tree\n",
+            "├── 16\n",
+            "└── Tree\n",
+            "    ├── 32\n",
+            "    ├── Tree\n",
+            "    │   ├── 64\n",
+            "    │   └── Tree\n",
+            "    │       └── 0\n",
+            "    └── Tree\n",
+            "        ├── 128\n",
+            "        └── Tree\n",
+            "            └── 256"
+        ),
     );
-
 }
-
-
 
 #[test]
 fn struct_multiple() {
-    
-
     #[derive(DisplayTree)]
     struct SubTree {
         o: i32,
@@ -145,23 +117,14 @@ fn struct_multiple() {
         b: i32,
         #[tree]
         c: SubTree,
-       
     }
-    let sub1: SubTree = SubTree {
-        o: 069,
-        i: 133,
-        
-    };
-    let sub2: SubTree = SubTree {
-        o: 300,
-        i: 123,
-    };
+    let sub1: SubTree = SubTree { o: 069, i: 133 };
+    let sub2: SubTree = SubTree { o: 300, i: 123 };
 
     let tree: Tree = Tree {
         a: sub1,
         b: 2,
         c: sub2,
-        
     };
 
     println!("{}", AsTree::new(&tree));
@@ -179,15 +142,10 @@ fn struct_multiple() {
             "    └── 123",
         ),
     );
-    
-
-
 }
 
 #[test]
 fn struct_multiple_option() {
-    
-
     #[derive(DisplayTree)]
     struct SubTree {
         #[node_label]
@@ -205,33 +163,23 @@ fn struct_multiple_option() {
         b: i32,
         #[tree]
         c: SubTree,
-       
     }
     let sub1: SubTree = SubTree {
         o: 069,
         i: Some(Box::new(SubTree {
             o: 42,
-            i: Some(Box::new(SubTree {
-                o: 1337,
-                i: None,
-            })),
+            i: Some(Box::new(SubTree { o: 1337, i: None })),
         })),
-        
-        
     };
     let sub2: SubTree = SubTree {
         o: 300,
-        i: Some(Box::new(SubTree {
-            o: 20,
-            i: None,
-        })),
+        i: Some(Box::new(SubTree { o: 20, i: None })),
     };
 
     let tree: Tree = Tree {
         a: sub1,
         b: 8,
         c: sub2,
-        
     };
 
     println!("{}", AsTree::new(&tree));
@@ -246,8 +194,4 @@ fn struct_multiple_option() {
             "    └── 20",
         ),
     );
-    
-
-
 }
-

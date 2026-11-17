@@ -1,11 +1,7 @@
-
-
 use proc_macro2::TokenStream as TokenStream2;
 use proc_macro_error::{abort, abort_call_site};
 use quote::{quote, quote_spanned, TokenStreamExt};
-use syn::{spanned::Spanned, token::Token};
-
-//use crate::attrs::field::{self, Config};
+use syn::spanned::Spanned;
 
 use super::attrs;
 
@@ -17,8 +13,6 @@ impl quote::ToTokens for ConstIdent {
     }
 }
 
-
-
 const FORMATTER_PARAM: ConstIdent = ConstIdent("__display_tree_f");
 const STYLE_PARAM: ConstIdent = ConstIdent("__display_tree_style");
 
@@ -29,7 +23,7 @@ pub fn generate(ast: syn::DeriveInput) -> TokenStream2 {
                 Ok(config) => config,
                 Err(error) => abort!(error.span, "{}", error),
             };
-            
+
             generate_struct_field_writes(&ast.ident, data.fields, config)
         }
         syn::Data::Enum(data) => {
@@ -40,7 +34,7 @@ pub fn generate(ast: syn::DeriveInput) -> TokenStream2 {
                         #arms
                     ),*
                 }
-                
+
             }
         }
         _ => abort_call_site!("`DisplayTree` can only be derived for `struct`s and `enum`s"),
@@ -109,7 +103,6 @@ pub fn generate_struct_field_writes<'a>(
         let value = quote! {&#field_member_expression};
         //NOTE leaf_expressions is now statements instead of expressions. !!!
         leaf_expressions.push(generate_leaf(field, &field_config, value));
-
 
         /* Remove if not needed in future.
         use attrs::field::FieldLabel;
@@ -233,7 +226,7 @@ pub fn generate_enum_field_writes<'a>(
 ) -> TokenStream2 {
     let mut node_label_binding: Option<&syn::Ident> = None;
 
-    let mut leaf_expressions: Vec<TokenStream2> = Vec::new();
+    let mut leaf_pushes: Vec<TokenStream2> = Vec::new();
     for (field, binding) in std::iter::zip(variant.fields.iter(), field_bindings) {
         let field_config = match attrs::field::Config::from(&field.attrs) {
             Ok(config) => config,
@@ -261,50 +254,9 @@ pub fn generate_enum_field_writes<'a>(
         if field_config.is_ignored {
             continue;
         }
-    
-        let value = quote! {#binding};
-        //NOTE leaf_expressions is now statements instead of expressions. !!!
-        leaf_expressions.push(generate_leaf(field, &field_config, value));
 
-        /* Same as struct.
-        use attrs::field::FieldLabel;
-        let leaf_expression_format = match field_config.field_label {
-            FieldLabel::Custom(label) => format!("{label}: {{}}"),
-            FieldLabel::Default => {
-                if let Some(identifier) = &field.ident {
-                    format!("{}: {{}}", identifier.to_string())
-                } else {
-                    abort! { field.span(),
-                        "cannot apply `{}` attribute to field because it is unnamed",
-                        attrs::field::FIELD_LABEL,
-                    }
-                }
-            }
-            FieldLabel::None => format!("{{}}"),
-        };
-
-        let leaf_expression = if field_config.is_tree {
-            // If the field is a tree, display it as one.
-            // Use the span of the field so that errors show in the correct location.
-            quote_spanned! { field.span() =>
-                ::std::format!(
-                    #leaf_expression_format,
-                    ::display_tree::AsTree::with_style(
-                        ::display_tree::to_display_tree_ref::ToDisplayTreeRef::to_display_tree(#binding),
-                        #STYLE_PARAM
-                    )
-                )
-            }
-        } else {
-            // Otherwise try to use `Display`.
-            // Use the span of the field so that errors show in the correct location.
-            quote_spanned! { field.span() =>
-                #STYLE_PARAM.leaf_style.apply(&::std::format!(#leaf_expression_format, #binding))
-            }
-        };
-
-        leaf_expressions.push(leaf_expression);
-        */
+        let value = quote! { #binding };
+        leaf_pushes.push(generate_leaf(field, &field_config, value));
     }
 
     let node_label_string_ref = if let Some(binding) = node_label_binding {
@@ -326,7 +278,7 @@ pub fn generate_enum_field_writes<'a>(
         }
     };
 
-    generate_field_writes(leaf_expressions, node_label_string_ref)
+    generate_field_writes(leaf_pushes, node_label_string_ref)
 }
 
 fn generate_field_writes(
@@ -413,13 +365,13 @@ fn generate_leaf(
                 attrs::field::FIELD_LABEL,
             },
         },
-        FieldLabel::None => "{}".to_string(), 
+        FieldLabel::None => "{}".to_string(),
     };
 
     //shown is expr for reference value being rendered
     let render = |shown: TokenStream2| {
         if config.is_tree {
-            quote_spanned! { 
+            quote_spanned! {
                 field.span() => ::std::format!(#fmt_str, ::display_tree::AsTree::with_style(::display_tree::to_display_tree_ref::ToDisplayTreeRef::to_display_tree(#shown),
                 #STYLE_PARAM))
             }
@@ -438,13 +390,10 @@ fn generate_leaf(
                 #LEAVES.push(::std::string::ToString::to_string(&#rendered));
             }
         }
-
     } else {
         let rendered = render(value);
         quote_spanned! {
             field.span() => #LEAVES.push(::std::string::ToString::to_string(&#rendered));
         }
     }
-
 }
-

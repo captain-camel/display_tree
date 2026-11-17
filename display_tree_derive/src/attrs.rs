@@ -215,20 +215,20 @@ pub mod field {
 
             if config.is_node_label && config.is_ignored {
                 return Err(AttributeParseError::new(
-                    AttributeParseErrorKind::Confict(NODE_LABEL, IGNORE_FIELD),
+                    AttributeParseErrorKind::Conflict(NODE_LABEL, IGNORE_FIELD),
                     attributes.first().span(),
                 ));
             }
             if config.is_ignored && config.is_tree {
                 return Err(AttributeParseError::new(
-                    AttributeParseErrorKind::Confict(IGNORE_FIELD, TREE),
+                    AttributeParseErrorKind::Conflict(IGNORE_FIELD, TREE),
                     attributes.first().span(),
                 ));
             }
 
             if config.is_ignored && config.is_optional {
                 return Err(AttributeParseError::new(
-                    AttributeParseErrorKind::Confict(IGNORE_FIELD, OPTIONAL_FIELD),
+                    AttributeParseErrorKind::Conflict(IGNORE_FIELD, OPTIONAL_FIELD),
                     attributes.first().span(),
                 ));
             }
@@ -244,7 +244,7 @@ pub struct AttributeParseError {
 }
 
 pub enum AttributeParseErrorKind {
-    Confict(&'static str, &'static str),
+    Conflict(&'static str, &'static str),
     ExpectedEqual(&'static str),
     ExpectedStringLiteral(&'static str),
     Malformed(&'static str),
@@ -260,7 +260,7 @@ impl AttributeParseError {
 impl std::fmt::Display for AttributeParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match self.kind {
-            AttributeParseErrorKind::Confict(first, second) => {
+            AttributeParseErrorKind::Conflict(first, second) => {
                 format!("conflicting helper attributes: cannot apply `{first}` and `{second}` to the same field")
             }
             AttributeParseErrorKind::ExpectedEqual(attribute) => {

@@ -13,8 +13,6 @@ pub mod node {
 
     impl Attribute {
         pub fn parse(attribute: &syn::Attribute) -> Option<Result<Self, AttributeParseError>> {
-            // FIXME: This should probably be parsed manually, currently it will miss
-            // recognized attributes that are in the wrong format.
             let meta = attribute.parse_meta().ok()?;
 
             match meta.path().get_ident()?.to_string().as_str() {
@@ -54,11 +52,10 @@ pub mod node {
         pub fn from(attributes: &[syn::Attribute]) -> Result<Self, AttributeParseError> {
             attributes.iter().flat_map(Attribute::parse).try_fold(
                 Self::default(),
-                |config, attribute| {
+                |_config, attribute: Result<Attribute, AttributeParseError>| {
                     Ok(match attribute? {
                         Attribute::NodeLabel(label) => Self {
                             node_label: Some(label),
-                            ..config
                         },
                     })
                 },
@@ -75,19 +72,19 @@ pub mod field {
     pub const FIELD_LABEL: &str = "field_label";
     pub const IGNORE_FIELD: &str = "ignore_field";
     pub const NODE_LABEL: &str = "node_label";
+    pub const OPTIONAL_FIELD: &str = "optional_field";
     pub const TREE: &str = "tree";
 
     pub enum Attribute {
         FieldLabel(Option<String>),
         IgnoreField,
         NodeLabel,
+        OptionalField,
         Tree,
     }
 
     impl Attribute {
         pub fn parse(attribute: &syn::Attribute) -> Option<Result<Self, AttributeParseError>> {
-            // FIXME: This should probably be parsed manually, currently it will miss
-            // recognized attributes that are in the wrong format.
             let meta = attribute.parse_meta().ok()?;
 
             Some(match meta.path().get_ident()?.to_string().as_str() {
@@ -130,6 +127,17 @@ pub mod field {
                         ))
                     }
                 }
+                OPTIONAL_FIELD => {
+                    //Hold for Option<&T>
+                    if matches!(meta, syn::Meta::Path(_)) {
+                        Ok(Self::OptionalField)
+                    } else {
+                        Err(AttributeParseError::new(
+                            AttributeParseErrorKind::UnexpectedArgument(OPTIONAL_FIELD),
+                            attribute.span(),
+                        ))
+                    }
+                }
                 TREE => {
                     // The `tree` attribute should only be a path, no arguments.
                     if matches!(meta, syn::Meta::Path(_)) {
@@ -150,6 +158,7 @@ pub mod field {
         pub field_label: FieldLabel,
         pub is_ignored: bool,
         pub is_node_label: bool,
+        pub is_optional: bool,
         pub is_tree: bool,
     }
 
@@ -165,6 +174,7 @@ pub mod field {
                 field_label: FieldLabel::None,
                 is_ignored: false,
                 is_node_label: false,
+                is_optional: false,
                 is_tree: false,
             }
         }
@@ -191,6 +201,10 @@ pub mod field {
                             is_node_label: true,
                             ..config
                         },
+                        Attribute::OptionalField => Self {
+                            is_optional: true,
+                            ..config
+                        },
                         Attribute::Tree => Self {
                             is_tree: true,
                             ..config
@@ -201,13 +215,20 @@ pub mod field {
 
             if config.is_node_label && config.is_ignored {
                 return Err(AttributeParseError::new(
-                    AttributeParseErrorKind::Confict(NODE_LABEL, IGNORE_FIELD),
+                    AttributeParseErrorKind::Conflict(NODE_LABEL, IGNORE_FIELD),
                     attributes.first().span(),
                 ));
             }
             if config.is_ignored && config.is_tree {
                 return Err(AttributeParseError::new(
-                    AttributeParseErrorKind::Confict(IGNORE_FIELD, TREE),
+                    AttributeParseErrorKind::Conflict(IGNORE_FIELD, TREE),
+                    attributes.first().span(),
+                ));
+            }
+
+            if config.is_ignored && config.is_optional {
+                return Err(AttributeParseError::new(
+                    AttributeParseErrorKind::Conflict(IGNORE_FIELD, OPTIONAL_FIELD),
                     attributes.first().span(),
                 ));
             }
@@ -223,7 +244,7 @@ pub struct AttributeParseError {
 }
 
 pub enum AttributeParseErrorKind {
-    Confict(&'static str, &'static str),
+    Conflict(&'static str, &'static str),
     ExpectedEqual(&'static str),
     ExpectedStringLiteral(&'static str),
     Malformed(&'static str),
@@ -239,7 +260,7 @@ impl AttributeParseError {
 impl std::fmt::Display for AttributeParseError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let string = match self.kind {
-            AttributeParseErrorKind::Confict(first, second) => {
+            AttributeParseErrorKind::Conflict(first, second) => {
                 format!("conflicting helper attributes: cannot apply `{first}` and `{second}` to the same field")
             }
             AttributeParseErrorKind::ExpectedEqual(attribute) => {

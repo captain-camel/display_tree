@@ -23,6 +23,7 @@ pub fn generate(ast: syn::DeriveInput) -> TokenStream2 {
                 Ok(config) => config,
                 Err(error) => abort!(error.span, "{}", error),
             };
+
             generate_struct_field_writes(&ast.ident, data.fields, config)
         }
         syn::Data::Enum(data) => {
@@ -33,16 +34,21 @@ pub fn generate(ast: syn::DeriveInput) -> TokenStream2 {
                         #arms
                     ),*
                 }
+
             }
         }
         _ => abort_call_site!("`DisplayTree` can only be derived for `struct`s and `enum`s"),
     };
 
     let ty = ast.ident;
-    let generics = ast.generics;
+    let mut generics = ast.generics;
+    for param in generics.type_params_mut() {
+        param.bounds.push(syn::parse_quote!(::std::fmt::Display));
+    }
+    let (impl_generics, ty_generics, clause) = generics.split_for_impl();
 
     quote! {
-        impl #generics ::display_tree::DisplayTree for #ty #generics {
+        impl #impl_generics ::display_tree::DisplayTree for #ty #ty_generics #clause {
             fn fmt(&self, #FORMATTER_PARAM: &mut std::fmt::Formatter, #STYLE_PARAM: ::display_tree::Style) -> ::std::fmt::Result {
                 #fn_inner
                 Ok(())
@@ -94,6 +100,11 @@ pub fn generate_struct_field_writes<'a>(
             continue;
         }
 
+        let value = quote! {&#field_member_expression};
+        //NOTE leaf_expressions is now statements instead of expressions. !!!
+        leaf_expressions.push(generate_leaf(field, &field_config, value));
+
+        /* Remove if not needed in future.
         use attrs::field::FieldLabel;
         let leaf_expression_format = match field_config.field_label {
             FieldLabel::Custom(label) => format!("{label}: {{}}"),
@@ -131,6 +142,7 @@ pub fn generate_struct_field_writes<'a>(
         };
 
         leaf_expressions.push(leaf_expression);
+        */
     }
 
     let node_label_string_ref = if let Some(expression) = node_label_member_expression {
@@ -214,7 +226,7 @@ pub fn generate_enum_field_writes<'a>(
 ) -> TokenStream2 {
     let mut node_label_binding: Option<&syn::Ident> = None;
 
-    let mut leaf_expressions: Vec<TokenStream2> = Vec::new();
+    let mut leaf_pushes: Vec<TokenStream2> = Vec::new();
     for (field, binding) in std::iter::zip(variant.fields.iter(), field_bindings) {
         let field_config = match attrs::field::Config::from(&field.attrs) {
             Ok(config) => config,
@@ -243,43 +255,8 @@ pub fn generate_enum_field_writes<'a>(
             continue;
         }
 
-        use attrs::field::FieldLabel;
-        let leaf_expression_format = match field_config.field_label {
-            FieldLabel::Custom(label) => format!("{label}: {{}}"),
-            FieldLabel::Default => {
-                if let Some(identifier) = &field.ident {
-                    format!("{}: {{}}", identifier.to_string())
-                } else {
-                    abort! { field.span(),
-                        "cannot apply `{}` attribute to field because it is unnamed",
-                        attrs::field::FIELD_LABEL,
-                    }
-                }
-            }
-            FieldLabel::None => format!("{{}}"),
-        };
-
-        let leaf_expression = if field_config.is_tree {
-            // If the field is a tree, display it as one.
-            // Use the span of the field so that errors show in the correct location.
-            quote_spanned! { field.span() =>
-                ::std::format!(
-                    #leaf_expression_format,
-                    ::display_tree::AsTree::with_style(
-                        ::display_tree::to_display_tree_ref::ToDisplayTreeRef::to_display_tree(#binding),
-                        #STYLE_PARAM
-                    )
-                )
-            }
-        } else {
-            // Otherwise try to use `Display`.
-            // Use the span of the field so that errors show in the correct location.
-            quote_spanned! { field.span() =>
-                #STYLE_PARAM.leaf_style.apply(&::std::format!(#leaf_expression_format, #binding))
-            }
-        };
-
-        leaf_expressions.push(leaf_expression);
+        let value = quote! { #binding };
+        leaf_pushes.push(generate_leaf(field, &field_config, value));
     }
 
     let node_label_string_ref = if let Some(binding) = node_label_binding {
@@ -301,82 +278,122 @@ pub fn generate_enum_field_writes<'a>(
         }
     };
 
-    generate_field_writes(leaf_expressions, node_label_string_ref)
+    generate_field_writes(leaf_pushes, node_label_string_ref)
 }
 
 fn generate_field_writes(
-    leaf_expressions: Vec<TokenStream2>,
+    leaf_pushes: Vec<TokenStream2>,
     node_label_string_ref: TokenStream2,
 ) -> TokenStream2 {
-    let mut field_writes: Vec<TokenStream2> = Vec::with_capacity(leaf_expressions.len());
-    for (index, leaf_expression) in leaf_expressions.iter().enumerate() {
-        let leaf_first_line_connectors_string = if index == leaf_expressions.len() - 1 {
-            quote! {
-                ::std::format!(
-                    "{}{} ",
-                    #STYLE_PARAM.char_set.end_connector,
-                    std::iter::repeat(#STYLE_PARAM.char_set.horizontal)
-                        .take(#STYLE_PARAM.indentation as usize)
-                        .collect::<String>()
-                )
-            }
-        } else {
-            quote! {
-                ::std::format!(
-                    "{}{} ",
-                    #STYLE_PARAM.char_set.connector,
-                    std::iter::repeat(#STYLE_PARAM.char_set.horizontal)
-                        .take(#STYLE_PARAM.indentation as usize)
-                        .collect::<String>()
-                )
-            }
-        };
+    quote! {
+        write!(#FORMATTER_PARAM, "{}", #STYLE_PARAM.leaf_style.apply(#node_label_string_ref))?;
 
-        let leaf_other_lines_connectors_string = if index == leaf_expressions.len() - 1 {
-            quote! {
-                ::std::format!(
-                    " {} ",
-                    std::iter::repeat(' ')
-                        .take(#STYLE_PARAM.indentation as usize)
-                        .collect::<String>()
-                )
-            }
-        } else {
-            quote! {
-                ::std::format!(
-                    "{}{} ",
-                    #STYLE_PARAM.char_set.vertical,
-                    std::iter::repeat(' ')
-                        .take(#STYLE_PARAM.indentation as usize)
-                        .collect::<String>()
-                )
-            }
-        };
+        let mut #LEAVES: ::std::vec::Vec<::std::string::String> = ::std::vec::Vec::new();
+        #(#leaf_pushes)*
 
-        field_writes.push(quote! {
-            let s = #leaf_expression;
-            let mut lines = s.lines();
+        let __display_tree_count = #LEAVES.len();
+        for (__display_tree_index, __display_tree_leaf) in #LEAVES.into_iter().enumerate() {
+            let __display_tree_is_last = __display_tree_index + 1 == __display_tree_count;
 
+            let (__first, __rest) = if __display_tree_is_last {
+                (
+                    ::std::format!(
+                        "{}{} ",
+                        #STYLE_PARAM.char_set.end_connector,
+                        std::iter::repeat(#STYLE_PARAM.char_set.horizontal)
+                            .take(#STYLE_PARAM.indentation as usize)
+                            .collect::<String>()
+                    ),
+                    ::std::format!(
+                        " {} ",
+                        std::iter::repeat(' ')
+                            .take(#STYLE_PARAM.indentation as usize)
+                            .collect::<String>()
+                    ),
+                )
+            } else {
+                (
+                    ::std::format!(
+                        "{}{} ",
+                        #STYLE_PARAM.char_set.connector,
+                        std::iter::repeat(#STYLE_PARAM.char_set.horizontal)
+                            .take(#STYLE_PARAM.indentation as usize)
+                            .collect::<String>()
+                    ),
+                    ::std::format!(
+                        "{}{} ",
+                        #STYLE_PARAM.char_set.vertical,
+                        std::iter::repeat(' ')
+                            .take(#STYLE_PARAM.indentation as usize)
+                            .collect::<String>()
+                    ),
+                )
+            };
+
+            let mut lines = __display_tree_leaf.lines();
             write!(
                 #FORMATTER_PARAM,
                 "\n{}{}",
-                #STYLE_PARAM.branch_style.apply(&#leaf_first_line_connectors_string),
+                #STYLE_PARAM.branch_style.apply(&__first),
                 lines.next().unwrap_or_default(),
             )?;
-
             for line in lines {
                 write!(
                     #FORMATTER_PARAM,
                     "\n{}{}",
-                    #STYLE_PARAM.branch_style.apply(&#leaf_other_lines_connectors_string),
+                    #STYLE_PARAM.branch_style.apply(&__rest),
                     line,
                 )?;
             }
-        })
+        }
     }
+}
 
-    quote! {
-        write!(#FORMATTER_PARAM, "{}", #STYLE_PARAM.leaf_style.apply(#node_label_string_ref))?;
-        #(#field_writes)*
+const LEAVES: ConstIdent = ConstIdent("__display_tree_leaves");
+fn generate_leaf(
+    field: &syn::Field,
+    config: &attrs::field::Config,
+    value: TokenStream2,
+) -> TokenStream2 {
+    use attrs::field::FieldLabel;
+    let fmt_str = match &config.field_label {
+        FieldLabel::Custom(label) => format!("{label}: {{}}"),
+        FieldLabel::Default => match &field.ident {
+            Some(indentifier) => format!("{indentifier}: {{}}"),
+            None => abort! { field.span(),
+                "cannot apply `{}` attribute to field because it is unnamed",
+                attrs::field::FIELD_LABEL,
+            },
+        },
+        FieldLabel::None => "{}".to_string(),
+    };
+
+    //shown is expr for reference value being rendered
+    let render = |shown: TokenStream2| {
+        if config.is_tree {
+            quote_spanned! {
+                field.span() => ::std::format!(#fmt_str, ::display_tree::AsTree::with_style(::display_tree::to_display_tree_ref::ToDisplayTreeRef::to_display_tree(#shown),
+                #STYLE_PARAM))
+            }
+        } else {
+            quote_spanned! {
+                field.span() => #STYLE_PARAM.leaf_style.apply(&::std::format!(#fmt_str, #shown))
+            }
+        }
+    };
+
+    if config.is_optional {
+        let inner = quote::format_ident!("__display_tree_inner");
+        let rendered = render(quote!(#inner));
+        quote_spanned! {
+            field.span() => if let ::std::option::Option::Some(#inner) = #value {
+                #LEAVES.push(::std::string::ToString::to_string(&#rendered));
+            }
+        }
+    } else {
+        let rendered = render(value);
+        quote_spanned! {
+            field.span() => #LEAVES.push(::std::string::ToString::to_string(&#rendered));
+        }
     }
 }

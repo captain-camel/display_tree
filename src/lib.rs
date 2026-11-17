@@ -174,6 +174,10 @@ pub use display_tree_derive::DisplayTree;
 ///   in the form `label: value` when it is formatted. A string literal can be
 ///   passed to specify the label, otherwise the name of the field will be used.
 ///
+/// - `#[optional_field]` indicates that a field may be missing from the
+///   displayed tree. Currently this requires the field have type [`Option`],
+///   and the branch will only be displayed in the [`Some`] case.
+///
 /// ### Struct/Variant Attributes
 ///
 /// - `#[node_label = "label"]` specifies the label to use for the node of the
